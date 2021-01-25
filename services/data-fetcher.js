@@ -1,93 +1,109 @@
 import jwt_decode from "jwt-decode";
 import axios from 'axios';
 
-const API_URL = "https://snack-tracker-api.herokuapp.com/api/v1/";
-const ACCESS_TOKEN_KEY = "snack-tracker-access-token";
-const REFRESH_TOKEN_KEY = "snack-tracker-refresh-token";
 
-export async function fetchAccessToken() {
+export default class DataFetcher {
 
-    let accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-
-    if (!tokenIsFresh(accessToken)) {
-        accessToken = await refreshToken();
-        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    constructor(apiUrl) {
+        this.apiUrl = apiUrl;
+        this.accessTokenKey = this.apiUrl + '-access-token';
+        this.refreshTokenKey = this.apiUrl + '-refresh-token';
     }
 
-    return accessToken;
+    async logIn(username, password) {
 
-}
+        const url = this.apiUrl + "token/";
 
-export async function logIn(username, password) {
+        const response = await axios.post(url, { username, password });
 
-    const url = API_URL + "token/";
+        localStorage.setItem(this.accessTokenKey, response.data.access);
+        localStorage.setItem(this.refreshTokenKey, response.data.refresh);
 
-    const response = await axios.post(url, { username, password });
+        return true
 
-    localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access);
-    localStorage.setItem(REFRESH_TOKEN_KEY, response.data.refresh);
-
-    return true
-
-}
-
-function tokenIsFresh(accessToken) {
-
-    if (!accessToken) return false;
-
-    let decodedToken = jwt_decode(accessToken);
-
-    let currentDate = new Date();
-
-    // JWT exp is in seconds
-    if (decodedToken.exp * 1000 < currentDate.getTime()) {
-        console.log("Token expired.");
-        return false;
-    } else {
-        return true;
-    }
-}
-async function refreshToken() {
-
-    let url = API_URL + "token/refresh/";
-
-    const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-
-    if (refresh) {
-
-        const response = await axios.post(url, { refresh });
-
-        let JWTToken = response.data.access;
-
-        return JWTToken;
-
-    } else {
-
-        return null;
     }
 
-}
+    logOut() {
 
-export default async function fetchResource(noun, id = null) {
-
-    const JWTToken = await fetchAccessToken();
-
-    let url = `${API_URL}${noun}/`;
-
-    if (id != null) {
-        url += `${id}/`;
+        localStorage.setItem(this.accessTokenKey, undefined);
+        localStorage.setItem(this.refreshTokenKey, undefined);
     }
 
-    let config = { headers: { "Authorization": `Bearer ${JWTToken}` } };
+    async fetchAccessToken() {
 
-    try {
+        let accessToken = localStorage.getItem(this.accessTokenKey);
 
-        let response = await axios.get(url, config);
+        if (!this.tokenIsFresh(accessToken)) {
+            accessToken = await this.refreshToken();
+            localStorage.setItem(this.accessTokenKey, accessToken);
+        }
 
-        return response.data;
+        return accessToken;
 
-    } catch (e) {
+    }
 
-        console.error("Failed to fetch series data")
+    tokenIsFresh(accessToken) {
+
+        if (!accessToken) return false;
+
+        let decodedToken = jwt_decode(accessToken);
+
+        let currentDate = new Date();
+
+        // JWT exp is in seconds
+        if (decodedToken.exp * 1000 < currentDate.getTime()) {
+            console.log("Token expired.");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    async refreshToken() {
+
+        let url = this.apiUrl + "token/refresh/";
+
+        const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+        if (refresh) {
+
+            const response = await axios.post(url, { refresh });
+
+            let JWTToken = response.data.access;
+
+            return JWTToken;
+
+        } else {
+
+            return null;
+        }
+    }
+
+
+
+    async fetchResource(noun, id = null) {
+
+        try {
+
+            const JWTToken = await this.fetchAccessToken();
+
+            let url = `${this.apiUrl}${noun}/`;
+
+            if (id != null) {
+                url += `${id}/`;
+            }
+
+            let config = { headers: { "Authorization": `Bearer ${JWTToken}` } };
+
+            let response = await axios.get(url, config);
+
+            return response.data;
+
+        } catch (e) {
+
+            console.error("Failed to fetch series data")
+
+            return []
+        }
     }
 }

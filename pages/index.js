@@ -1,29 +1,56 @@
-import fetchResource, { logIn } from '../services/data-fetcher'
+import { Component } from 'react'
+import DataFetcher from '../services/data-fetcher'
 
-async function logInHandler() {
+export default class Home extends Component {
 
-    const loggedIn = await logIn("jb","jb");
-
-    if(loggedIn) {
-        console.log('yay');
-    } else {
-        console.log('sad');
+    constructor(props) {
+        super(props);
+        this.fetcher = new DataFetcher("https://snack-tracker-api.herokuapp.com/api/v1/");
+        this.state = {
+            loggedIn: false,
+            snacks: []
+        }
     }
 
-}
+    async logInHandler() {
 
-async function getSnacksHandler() {
-    const snacks = await fetchResource('snacks');
-    console.log('snacks', snacks);
-}
+        const loggedIn = await this.fetcher.logIn("jb", "jb");
 
+        this.setState({ loggedIn });
 
-export default function Home() {
-  return (
-    <div className="container">
-        <button onClick={logInHandler}>Log In</button>
-        <button onClick={getSnacksHandler}>Get Snacks</button>
-    </div>
-  )
+    }
+
+    logOutHandler() {
+
+        this.fetcher.logOut();
+
+        this.setState({ loggedIn: false, snacks: [] })
+    }
+
+    async getSnacksHandler() {
+        const snacks = await this.fetcher.fetchResource('snacks');
+        this.setState({ snacks });
+    }
+
+    render() {
+        return (
+            <div className="container">
+                {this.state.loggedIn ? (
+                    <button onClick={() => this.logOutHandler()}>Log Out</button>
+                ) : (
+
+                <button onClick={() => this.logInHandler()}>Log In</button>
+                )}
+
+                <button onClick={() => this.getSnacksHandler()}>Get Snacks</button>
+
+                <ul>
+                    {this.state.snacks.map(snack => (
+                        <li key={snack.id}>{snack.name}</li>
+                    ))}
+                </ul>
+            </div>
+        )
+    }
 }
 

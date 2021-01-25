@@ -20,7 +20,7 @@ async function getSnacksHandler() {
 
 export default function Home() {
   return (
-    <div>
+    <div className="container">
         <button onClick={logInHandler}>Log In</button>
         <button onClick={getSnacksHandler}>Get Snacks</button>
     </div>
